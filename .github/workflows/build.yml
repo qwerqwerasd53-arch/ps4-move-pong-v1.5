@@ -1,0 +1,71 @@
+name: PS4 Pong - Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    container:
+      image: openorbisofficial/toolchain:latest
+      options: --user root
+
+    steps:
+    - name: Checkout
+      uses: actions/checkout@v4
+
+    - name: Verify structure
+      run: |
+        set -e
+        echo "=== Checking files ==="
+        [ -f Makefile ] && echo "OK Makefile" || (echo "MISSING Makefile"; exit 1)
+        [ -d src ] && echo "OK src/" || (echo "MISSING src/"; exit 1)
+        [ -d include ] && echo "OK include/" || (echo "MISSING include/"; exit 1)
+        [ -f src/main.c ] && echo "OK main.c" || (echo "MISSING main.c"; exit 1)
+        [ -f src/game.c ] && echo "OK game.c" || (echo "MISSING game.c"; exit 1)
+        [ -f src/input.c ] && echo "OK input.c" || (echo "MISSING input.c"; exit 1)
+        [ -f src/video.c ] && echo "OK video.c" || (echo "MISSING video.c"; exit 1)
+        [ -f include/config.h ] && echo "OK config.h" || (echo "MISSING config.h"; exit 1)
+        [ -f include/game.h ] && echo "OK game.h" || (echo "MISSING game.h"; exit 1)
+        [ -f include/input.h ] && echo "OK input.h" || (echo "MISSING input.h"; exit 1)
+        [ -f include/video.h ] && echo "OK video.h" || (echo "MISSING video.h"; exit 1)
+
+    - name: Diagnose toolchain environment
+      run: |
+        set +e
+        echo "OO_PS4_TOOLCHAIN=$OO_PS4_TOOLCHAIN"
+        which clang || echo "clang not on PATH"
+        which ld.lld || echo "ld.lld not on PATH"
+        ls -la "$OO_PS4_TOOLCHAIN" || echo "toolchain dir not found at that env path"
+        exit 0
+
+    - name: Clean
+      run: make clean || echo "No previous build"
+
+    - name: Build
+      run: make -j4
+
+    - name: Verify output
+      run: |
+        set -e
+        echo "=== Verifying output ==="
+        [ -f eboot.elf ] && echo "OK eboot.elf created" || (echo "MISSING eboot.elf"; exit 1)
+        echo ""
+        echo "=== File info ==="
+        ls -lh eboot.elf
+
+    - name: Upload artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: eboot.elf
+        path: eboot.elf
+        retention-days: 30
+
+    - name: Success
+      run: |
+        echo "PS4 Pong eboot.elf ready!"
+        echo "Download from Artifacts section"
