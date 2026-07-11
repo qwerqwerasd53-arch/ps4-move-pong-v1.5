@@ -7,35 +7,21 @@
 
 OO_PS4_TOOLCHAIN ?= $(shell pwd)/OpenOrbis-PS4-Toolchain
 
-# clang برای کامپایل. برای لینک هم از clang استفاده می‌کنیم (نه ld.lld مستقیم)،
-# چون فقط clang به‌عنوان "driver" فلگ -target رو می‌فهمه و خودش به‌درستی
-# ld.lld رو با آرگومان‌های صحیح صدا می‌زنه. صدا زدن مستقیم ld.lld با -target
-# خطای "unknown argument" می‌ده.
+# نکته مهم (رفع قطعی خطای اجرا روی خودِ PS4 - علت واقعی کرش):
+# لاگ کرش نشون داد GoldHENLoader موقع اجرا با null pointer کرش می‌کنه.
+# دلیل واقعی: تو نسخه‌های قبلی این Makefile، فایل استارتاپ واقعی PS4
+# (crt1.o) هیچ‌وقت لینک نمی‌شد. این فایله که _start رو تعریف می‌کنه و
+# قبل از main() محیط اجرا (استک، TLS و...) رو آماده می‌کنه. بدون اون:
+#   orbis-ld: warning: cannot find entry symbol _start
+# یعنی هیچ entry point معتبری نداریم و کنسول موقع اجرا کرش می‌کنه.
 #
-# نکته مهم (رفع قطعی خطای CI - نسخه‌ی نهایی واقعی):
-# بعد از حذف -fuse-ld=، این خطای جدید ظاهر شد:
-#   clang: error: unable to execute command: Executable "orbis-ld" doesn't exist!
-# دلیلش: این fork اختصاصی کلنگ برای تارگت scei-ps4، وقتی هیچ -fuse-ld
-# مشخص نشده باشه، به‌صورت پیش‌فرض دنبال فایل اجرایی‌ای دقیقاً به اسم
-# "orbis-ld" می‌گرده (این رفتار مستنده و تو خودِ سورس کلنگ PS4 هست) — نه
-# ld.lld. این ایمیج داکر فقط ld.lld رو داره، نه orbis-ld.
-# و همون‌طور که قبلاً دیدیم، دادن مستقیم مقدار به -fuse-ld= (چه اسم کوتاه
-# lld، چه مسیر کامل) با خطای "unsupported value ... for -linker option"
-# رد می‌شه، پس نمی‌تونیم از اون مسیر هم وارد بشیم.
-#
-# راه‌حل قطعی: یک symlink موقت دقیقاً به اسم "orbis-ld" می‌سازیم که به
-# همون ld.lld واقعی اشاره می‌کنه، و با فلگ استاندارد -B به کلنگ می‌گیم
-# این مسیر رو هم برای پیدا کردن ابزارهای کمکی (linker/assembler) بگرده.
-# این کار کاملاً مستقل از -fuse-ld= هست، پس به اون enum محدودشده گیر
-# نمی‌کنه.
-LLD_REAL := $(shell command -v ld.lld 2>/dev/null)
-ifeq ($(LLD_REAL),)
-LLD_REAL := /usr/bin/ld.lld
-endif
-LD_SHIM_DIR := $(CURDIR)/.ld-shim
-
+# راه‌حل درست و مستند (بر اساس پروژه‌های واقعی و کارکن OpenOrbis مثل
+# ps4-ipi و PS4RPI): باید مستقیم با خودِ ld.lld لینک کنیم، با اسکریپت
+# لینکر رسمی تول‌چین (link.x) و فایل استارتاپ (crt1.o) که خودِ تول‌چین
+# همراهش میاد. این کار کاملاً جایگزین تلاش‌های قبلی با clang -fuse-ld
+# می‌شه و اون مشکلات رو از اساس کنار می‌ذاره.
 CC = clang
-LD = clang -B$(LD_SHIM_DIR)
+LD = ld.lld
 
 # Target
 TARGET = x86_64-scei-ps4
@@ -46,7 +32,8 @@ CFLAGS += -fPIC -fno-strict-aliasing -fvisibility=hidden
 CFLAGS += -isystem $(OO_PS4_TOOLCHAIN)/include
 CFLAGS += -Iinclude
 
-LDFLAGS = -target $(TARGET)
+LDFLAGS = -m elf_x86_64 -pie --eh-frame-hdr
+LDFLAGS += --script $(OO_PS4_TOOLCHAIN)/link.x
 LDFLAGS += -L$(OO_PS4_TOOLCHAIN)/lib
 LDFLAGS += -L$(OO_PS4_TOOLCHAIN)/lib/x86_64-scei-ps4
 
@@ -74,16 +61,14 @@ $(OBJDIR)/%.o: $(SRCDIR)/%.c | $(OBJDIR)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(EBOOT): $(OBJECTS)
-	@mkdir -p $(LD_SHIM_DIR)
-	@ln -sf "$(LLD_REAL)" "$(LD_SHIM_DIR)/orbis-ld"
-	@echo "[LD] Linking $@ (using orbis-ld shim -> $(LLD_REAL))"
-	$(LD) $(LDFLAGS) -o $@ $(OBJECTS) \
+	@echo "[LD] Linking $@"
+	$(LD) $(LDFLAGS) -o $@ $(OO_PS4_TOOLCHAIN)/lib/crt1.o $(OBJECTS) \
 		-lkernel -lc -lm -lSceVideoOut -lSceSysmodule -lScePad -lSceUserService
 	@echo "Build complete: $@"
 	@ls -lh $@
 
 clean:
-	@rm -rf $(OBJDIR) $(EBOOT) $(LD_SHIM_DIR)
+	@rm -rf $(OBJDIR) $(EBOOT)
 	@echo "Clean complete"
 
 .PHONY: all clean
