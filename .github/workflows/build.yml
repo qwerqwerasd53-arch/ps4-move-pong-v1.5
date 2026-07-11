@@ -40,6 +40,10 @@ jobs:
         echo "OO_PS4_TOOLCHAIN=$OO_PS4_TOOLCHAIN"
         which clang || echo "clang not on PATH"
         which ld.lld || echo "ld.lld not on PATH"
+        which create-fself || echo "create-fself not on PATH"
+        which create-gp4 || echo "create-gp4 not on PATH"
+        which PkgTool.Core || echo "PkgTool.Core not on PATH"
+        which python3 || echo "python3 not on PATH"
         ls -la "$OO_PS4_TOOLCHAIN" || echo "toolchain dir not found at that env path"
         exit 0
 
@@ -58,14 +62,37 @@ jobs:
         echo "=== File info ==="
         ls -lh eboot.elf
 
-    - name: Upload artifact
+    - name: Build PKG
+      run: make pkg
+
+    - name: Verify PKG output
+      run: |
+        set -e
+        echo "=== Verifying PKG output ==="
+        PKGFILE=$(ls *.pkg 2>/dev/null | head -n1)
+        if [ -z "$PKGFILE" ]; then
+          echo "MISSING .pkg file"
+          exit 1
+        fi
+        echo "OK $PKGFILE created"
+        ls -lh "$PKGFILE"
+        echo "PKG_FILE=$PKGFILE" >> "$GITHUB_ENV"
+
+    - name: Upload artifact (eboot.elf)
       uses: actions/upload-artifact@v4
       with:
         name: eboot.elf
         path: eboot.elf
         retention-days: 30
 
+    - name: Upload artifact (pkg)
+      uses: actions/upload-artifact@v4
+      with:
+        name: ps4-pong.pkg
+        path: ${{ env.PKG_FILE }}
+        retention-days: 30
+
     - name: Success
       run: |
-        echo "PS4 Pong eboot.elf ready!"
+        echo "PS4 Pong eboot.elf and .pkg ready!"
         echo "Download from Artifacts section"
