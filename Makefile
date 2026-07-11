@@ -68,7 +68,65 @@ $(EBOOT): $(OBJECTS)
 	@ls -lh $@
 
 clean:
-	@rm -rf $(OBJDIR) $(EBOOT)
+	@rm -rf $(OBJDIR) $(EBOOT) $(PKGDIR) $(CONTENT_ID).pkg
 	@echo "Clean complete"
 
-.PHONY: all clean
+# ==========================================================================
+# ساخت فایل .pkg (قابل نصب واقعی، نه فقط ELF خام)
+# بر پایه‌ی الگوی دقیق پروژه‌ی واقعی و منتشرشده‌ی 0x199/ps4-ipi (که کاملاً
+# چک شده)، با همون ابزارهای رسمی و متن‌باز خودِ OpenOrbis (create-fself,
+# create-gp4, PkgTool.Core) که از قبل داخل همین ایمیج داکر
+# openorbisofficial/toolchain نصب و روی PATH هستن (طبق مستندات رسمی
+# DOCKER.md خودِ تول‌چین).
+# ==========================================================================
+
+TITLE      := PS4 Pong
+VERSION    := 01.00
+TITLE_ID   := BREW00099
+CONTENT_ID := IV0000-BREW00099_00-PONGHOMEBREW0000
+
+PKGDIR := pkg
+
+pkg: $(CONTENT_ID).pkg
+
+$(PKGDIR)/eboot.bin: $(EBOOT)
+	@mkdir -p $(PKGDIR)
+	create-fself -eboot=$(PKGDIR)/eboot.bin -in=$(EBOOT) -out=$(OBJDIR)/eboot.oelf --paid 0x3800000000000010
+
+$(PKGDIR)/sce_sys/param.sfo: Makefile
+	@mkdir -p $(PKGDIR)/sce_sys
+	PkgTool.Core sfo_new $@
+	PkgTool.Core sfo_setentry $@ APP_TYPE --type Integer --maxsize 4 --value 1
+	PkgTool.Core sfo_setentry $@ APP_VER --type Utf8 --maxsize 8 --value '$(VERSION)'
+	PkgTool.Core sfo_setentry $@ ATTRIBUTE --type Integer --maxsize 4 --value 0
+	PkgTool.Core sfo_setentry $@ CATEGORY --type Utf8 --maxsize 4 --value 'gd'
+	PkgTool.Core sfo_setentry $@ CONTENT_ID --type Utf8 --maxsize 48 --value '$(CONTENT_ID)'
+	PkgTool.Core sfo_setentry $@ DOWNLOAD_DATA_SIZE --type Integer --maxsize 4 --value 0
+	PkgTool.Core sfo_setentry $@ SYSTEM_VER --type Integer --maxsize 4 --value 0
+	PkgTool.Core sfo_setentry $@ TITLE --type Utf8 --maxsize 128 --value '$(TITLE)'
+	PkgTool.Core sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
+	PkgTool.Core sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
+
+# right.sprx یه فایل استاندارد و شناخته‌شده‌ست که تقریباً همه‌ی هوم‌بروهای
+# PS4 لازمش دارن (بخش "about" پکیج). مستقیم از ریپوی رسمی و شناخته‌شده‌ی
+# Al-Azif (یکی از توسعه‌دهنده‌های اصلی خودِ GoldHEN، طبق کردیت‌های همون
+# لاگ FTP که قبلاً دیدیم) دانلودش می‌کنیم، نه این‌که حدس زده بشه.
+$(PKGDIR)/sce_sys/about/right.sprx:
+	@mkdir -p $(PKGDIR)/sce_sys/about
+	python3 -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/Al-Azif/ps4-hello-world/main/hello_world/pkg/sce_sys/about/right.sprx', '$@')"
+
+$(PKGDIR)/sce_sys/icon0.png:
+	@mkdir -p $(PKGDIR)/sce_sys
+	python3 tools/make_placeholder_png.py $@ 512 512
+
+$(PKGDIR)/sce_sys/pic1.png:
+	@mkdir -p $(PKGDIR)/sce_sys
+	python3 tools/make_placeholder_png.py $@ 1920 1080
+
+$(PKGDIR)/pkg.gp4: $(PKGDIR)/eboot.bin $(PKGDIR)/sce_sys/about/right.sprx $(PKGDIR)/sce_sys/param.sfo $(PKGDIR)/sce_sys/icon0.png $(PKGDIR)/sce_sys/pic1.png
+	cd $(PKGDIR) && create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --files "eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic1.png"
+
+$(CONTENT_ID).pkg: $(PKGDIR)/pkg.gp4
+	PkgTool.Core pkg_build $< .
+
+.PHONY: all clean pkg
