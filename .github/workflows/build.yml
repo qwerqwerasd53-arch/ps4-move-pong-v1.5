@@ -52,6 +52,10 @@ jobs:
         echo "=== searching / for any python interpreter (depth-limited) ==="
         ls -la /usr/bin/python* 2>&1
         ls -la /usr/local/bin/python* 2>&1
+        echo "=== CONTENT of template.gp4 (ground truth for this exact PkgTool.Core build) ==="
+        cat "$OO_PS4_TOOLCHAIN/bin/data/template.gp4" 2>&1
+        echo "=== CONTENT of template.xml ==="
+        cat "$OO_PS4_TOOLCHAIN/bin/data/template.xml" 2>&1
         exit 0
 
     - name: Clean
@@ -80,7 +84,7 @@ jobs:
         echo "=== Verifying PKG output ==="
         PKGFILE=$(ls *.pkg 2>/dev/null | head -n1)
         if [ -z "$PKGFILE" ]; then
-          echo "MISSING .pkg file (expected while we finish wiring create-fself/create-gp4 paths)"
+          echo "MISSING .pkg file (still working on gp4 schema)"
           exit 0
         fi
         echo "OK $PKGFILE created"
@@ -104,5 +108,5 @@ jobs:
 
     - name: Success
       run: |
-        echo "PS4 Pong eboot.elf ready! (pkg step still being finalized)"
+        echo "PS4 Pong eboot.elf ready! (pkg schema still being finalized)"
         echo "Download from Artifacts section"
