@@ -75,9 +75,11 @@ clean:
 # ساخت فایل .pkg (قابل نصب واقعی، نه فقط ELF خام)
 #
 # این بخش بر پایه‌ی داده‌ی واقعی از لاگ diagnostic خودمون نوشته شده، نه حدس:
-#   - create-fself و create-gp4 تو این ایمیج داکر اصلاً وجود ندارن (جستجوی
-#     کامل تو کل پوشه‌ی تول‌چین هیچی پیدا نکرد). این دو ابزار بعداً با
-#     create-eboot ادغام شدن (طبق CHANGELOG رسمی خودِ OpenOrbis).
+#   - create-fself و create-gp4 (که تو نسخه‌های قدیمی‌تر تول‌چین بودن)
+#     تو این ایمیج داکر اصلاً وجود ندارن (جستجوی کامل تو کل پوشه‌ی تول‌چین
+#     هیچی پیدا نکرد). این دو ابزار بعداً با create-eboot ادغام شدن
+#     (طبق CHANGELOG رسمی خودِ OpenOrbis: "Merged create-eboot and
+#     create-lib into one tool for ease-of-use").
 #   - create-eboot و PkgTool.Core هر دو واقعاً هستن، دقیقاً اینجا:
 #       /lib/OpenOrbisSDK/bin/linux/create-eboot
 #       /lib/OpenOrbisSDK/bin/linux/PkgTool.Core
@@ -91,6 +93,9 @@ clean:
 #     (این مسیرها هم مستقیم از خروجی find تو لاگ خودمون تایید شدن.)
 #   - چون create-gp4 وجود نداره، فایل pkg.gp4 رو مستقیم و دستی می‌سازیم،
 #     بر اساس اسکیمای واقعی و تاییدشده‌ی GP4.
+#   - orig_path های داخل gp4 نسبت به خودِ پوشه‌ی pkg/ حساب می‌شن (این رو
+#     خطای دقیق PkgTool.Core که مسیر "pkg/pkg/eboot.bin" رو گزارش داد
+#     ثابت کرد)، برای همین بدون پیشوند pkg/ نوشته شدن.
 # ==========================================================================
 
 TITLE      := PS4 Pong
@@ -154,11 +159,11 @@ define GP4_CONTENT
     </chunk_info>
   </volume>
   <files img_no="0">
-    <file targ_path="eboot.bin" orig_path="$(PKGDIR)/eboot.bin" />
-    <file targ_path="sce_sys/param.sfo" orig_path="$(PKGDIR)/sce_sys/param.sfo" />
-    <file targ_path="sce_sys/icon0.png" orig_path="$(PKGDIR)/sce_sys/icon0.png" />
-    <file targ_path="sce_sys/pic0.png" orig_path="$(PKGDIR)/sce_sys/pic0.png" />
-    <file targ_path="sce_sys/about/right.sprx" orig_path="$(PKGDIR)/sce_sys/about/right.sprx" />
+    <file targ_path="eboot.bin" orig_path="eboot.bin" />
+    <file targ_path="sce_sys/param.sfo" orig_path="sce_sys/param.sfo" />
+    <file targ_path="sce_sys/icon0.png" orig_path="sce_sys/icon0.png" />
+    <file targ_path="sce_sys/pic0.png" orig_path="sce_sys/pic0.png" />
+    <file targ_path="sce_sys/about/right.sprx" orig_path="sce_sys/about/right.sprx" />
   </files>
 </psproject>
 endef
