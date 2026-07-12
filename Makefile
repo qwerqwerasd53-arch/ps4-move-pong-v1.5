@@ -92,10 +92,8 @@ clean:
 #       /lib/OpenOrbisSDK/bin/data/pic0.png
 #     (این مسیرها هم مستقیم از خروجی find تو لاگ خودمون تایید شدن.)
 #   - چون create-gp4 وجود نداره، فایل pkg.gp4 رو مستقیم و دستی می‌سازیم،
-#     بر اساس اسکیمای واقعی و تاییدشده‌ی GP4.
-#   - orig_path های داخل gp4 نسبت به خودِ پوشه‌ی pkg/ حساب می‌شن (این رو
-#     خطای دقیق PkgTool.Core که مسیر "pkg/pkg/eboot.bin" رو گزارش داد
-#     ثابت کرد)، برای همین بدون پیشوند pkg/ نوشته شدن.
+#     بر اساس اسکیمای واقعی و تاییدشده‌ی GP4 (از پروژه‌ی واقعی و منتشرشده‌ی
+#     Al-Azif/ps4vibe که دقیقاً همین فرمت رو استفاده می‌کنه).
 # ==========================================================================
 
 TITLE      := PS4 Pong
@@ -160,6 +158,9 @@ define GP4_CONTENT
   </volume>
   <files img_no="0">
     <file targ_path="eboot.bin" orig_path="eboot.bin" />
+    <dir targ_name="sce_sys">
+      <dir targ_name="about" />
+    </dir>
     <file targ_path="sce_sys/param.sfo" orig_path="sce_sys/param.sfo" />
     <file targ_path="sce_sys/icon0.png" orig_path="sce_sys/icon0.png" />
     <file targ_path="sce_sys/pic0.png" orig_path="sce_sys/pic0.png" />
