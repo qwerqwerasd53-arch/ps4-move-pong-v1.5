@@ -109,7 +109,7 @@ pkg: $(CONTENT_ID).pkg
 
 $(PKGDIR)/eboot.bin: $(EBOOT)
 	@mkdir -p $(PKGDIR)
-	$(CREATE_EBOOT) -in=$(EBOOT) -eboot=$(PKGDIR)/eboot.bin --paid 0x3800000000000011
+	$(CREATE_EBOOT) -in=$(EBOOT) -out=$(PKGDIR)/eboot.bin --paid 0x3800000000000011
 
 $(PKGDIR)/sce_sys/param.sfo: Makefile
 	@mkdir -p $(PKGDIR)/sce_sys
