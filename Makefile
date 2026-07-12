@@ -1,32 +1,12 @@
 # Makefile - PS4 Pong (Real)
-#
-# نکته: هدرهای عمومی C (stdio.h و...) و خودِ clang/ld.lld در ریپوی گیت OpenOrbis
-# نیستن (اونا تو ریپوی جدای musl و در نسخه‌ی ریلیزشده‌ی تول‌چین هستن).
-# برای همین تو ورک‌فلوی گیت‌هاب اکشن، کل جاب داخل ایمیج داکر رسمی
-# openorbisofficial/toolchain اجرا میشه که همه‌چی از قبل توش آماده‌ست.
 
 OO_PS4_TOOLCHAIN ?= $(shell pwd)/OpenOrbis-PS4-Toolchain
 
-# نکته مهم (رفع قطعی خطای اجرا روی خودِ PS4 - علت واقعی کرش):
-# لاگ کرش نشون داد GoldHENLoader موقع اجرا با null pointer کرش می‌کنه.
-# دلیل واقعی: تو نسخه‌های قبلی این Makefile، فایل استارتاپ واقعی PS4
-# (crt1.o) هیچ‌وقت لینک نمی‌شد. این فایله که _start رو تعریف می‌کنه و
-# قبل از main() محیط اجرا (استک، TLS و...) رو آماده می‌کنه. بدون اون:
-#   orbis-ld: warning: cannot find entry symbol _start
-# یعنی هیچ entry point معتبری نداریم و کنسول موقع اجرا کرش می‌کنه.
-#
-# راه‌حل درست و مستند (بر اساس پروژه‌های واقعی و کارکن OpenOrbis مثل
-# ps4-ipi و PS4RPI): باید مستقیم با خودِ ld.lld لینک کنیم، با اسکریپت
-# لینکر رسمی تول‌چین (link.x) و فایل استارتاپ (crt1.o) که خودِ تول‌چین
-# همراهش میاد. این کار کاملاً جایگزین تلاش‌های قبلی با clang -fuse-ld
-# می‌شه و اون مشکلات رو از اساس کنار می‌ذاره.
 CC = clang
 LD = ld.lld
 
-# Target
 TARGET = x86_64-scei-ps4
 
-# Flags
 CFLAGS = -target $(TARGET)
 CFLAGS += -fPIC -fno-strict-aliasing -fvisibility=hidden
 CFLAGS += -isystem $(OO_PS4_TOOLCHAIN)/include
@@ -37,7 +17,6 @@ LDFLAGS += --script $(OO_PS4_TOOLCHAIN)/link.x
 LDFLAGS += -L$(OO_PS4_TOOLCHAIN)/lib
 LDFLAGS += -L$(OO_PS4_TOOLCHAIN)/lib/x86_64-scei-ps4
 
-# Files
 SRCDIR = src
 OBJDIR = objs
 
@@ -50,7 +29,6 @@ SOURCES = \
 OBJECTS = $(SOURCES:$(SRCDIR)/%.c=$(OBJDIR)/%.o)
 EBOOT = eboot.elf
 
-# Rules
 all: $(EBOOT)
 
 $(OBJDIR):
@@ -70,31 +48,6 @@ $(EBOOT): $(OBJECTS)
 clean:
 	@rm -rf $(OBJDIR) $(EBOOT) $(PKGDIR) $(CONTENT_ID).pkg
 	@echo "Clean complete"
-
-# ==========================================================================
-# ساخت فایل .pkg (قابل نصب واقعی، نه فقط ELF خام)
-#
-# این بخش بر پایه‌ی داده‌ی واقعی از لاگ diagnostic خودمون نوشته شده، نه حدس:
-#   - create-fself و create-gp4 (که تو نسخه‌های قدیمی‌تر تول‌چین بودن)
-#     تو این ایمیج داکر اصلاً وجود ندارن (جستجوی کامل تو کل پوشه‌ی تول‌چین
-#     هیچی پیدا نکرد). این دو ابزار بعداً با create-eboot ادغام شدن
-#     (طبق CHANGELOG رسمی خودِ OpenOrbis: "Merged create-eboot and
-#     create-lib into one tool for ease-of-use").
-#   - create-eboot و PkgTool.Core هر دو واقعاً هستن، دقیقاً اینجا:
-#       /lib/OpenOrbisSDK/bin/linux/create-eboot
-#       /lib/OpenOrbisSDK/bin/linux/PkgTool.Core
-#     (تایید شده از لاگ)، ولی رو PATH نیستن، پس با مسیر کامل صداشون می‌زنیم.
-#   - python3 هم اصلاً رو این ایمیج نیست (تایید شده از لاگ)، پس به‌جای
-#     دانلود/ساخت آیکون با پایتون، از فایل‌های آماده‌ای که خودِ تول‌چین
-#     از قبل داره استفاده می‌کنیم:
-#       /lib/OpenOrbisSDK/bin/data/right.sprx
-#       /lib/OpenOrbisSDK/bin/data/icon0.png
-#       /lib/OpenOrbisSDK/bin/data/pic0.png
-#     (این مسیرها هم مستقیم از خروجی find تو لاگ خودمون تایید شدن.)
-#   - چون create-gp4 وجود نداره، فایل pkg.gp4 رو مستقیم و دستی می‌سازیم،
-#     بر اساس اسکیمای واقعی و تاییدشده‌ی GP4 (از پروژه‌ی واقعی و منتشرشده‌ی
-#     Al-Azif/ps4vibe که دقیقاً همین فرمت رو استفاده می‌کنه).
-# ==========================================================================
 
 TITLE      := PS4 Pong
 VERSION    := 01.00
