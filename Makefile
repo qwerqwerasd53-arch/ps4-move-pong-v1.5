@@ -73,10 +73,24 @@ clean:
 
 # ==========================================================================
 # ساخت فایل .pkg (قابل نصب واقعی، نه فقط ELF خام)
-# بر پایه‌ی الگوی دقیق پروژه‌ی واقعی و منتشرشده‌ی 0x199/ps4-ipi (که کاملاً
-# چک شده)، با همون ابزارهای رسمی و متن‌باز خودِ OpenOrbis (create-fself,
-# create-gp4, PkgTool.Core) که از قبل داخل همین ایمیج داکر
-# openorbisofficial/toolchain نصب هستن.
+#
+# این بخش بر پایه‌ی داده‌ی واقعی از لاگ diagnostic خودمون نوشته شده، نه حدس:
+#   - create-fself و create-gp4 تو این ایمیج داکر اصلاً وجود ندارن (جستجوی
+#     کامل تو کل پوشه‌ی تول‌چین هیچی پیدا نکرد). این دو ابزار بعداً با
+#     create-eboot ادغام شدن (طبق CHANGELOG رسمی خودِ OpenOrbis).
+#   - create-eboot و PkgTool.Core هر دو واقعاً هستن، دقیقاً اینجا:
+#       /lib/OpenOrbisSDK/bin/linux/create-eboot
+#       /lib/OpenOrbisSDK/bin/linux/PkgTool.Core
+#     (تایید شده از لاگ)، ولی رو PATH نیستن، پس با مسیر کامل صداشون می‌زنیم.
+#   - python3 هم اصلاً رو این ایمیج نیست (تایید شده از لاگ)، پس به‌جای
+#     دانلود/ساخت آیکون با پایتون، از فایل‌های آماده‌ای که خودِ تول‌چین
+#     از قبل داره استفاده می‌کنیم:
+#       /lib/OpenOrbisSDK/bin/data/right.sprx
+#       /lib/OpenOrbisSDK/bin/data/icon0.png
+#       /lib/OpenOrbisSDK/bin/data/pic0.png
+#     (این مسیرها هم مستقیم از خروجی find تو لاگ خودمون تایید شدن.)
+#   - چون create-gp4 وجود نداره، فایل pkg.gp4 رو مستقیم و دستی می‌سازیم،
+#     بر اساس اسکیمای واقعی و تاییدشده‌ی GP4.
 # ==========================================================================
 
 TITLE      := PS4 Pong
@@ -85,13 +99,17 @@ TITLE_ID   := BREW00099
 CONTENT_ID := IV0000-BREW00099_00-PONGHOMEBREW0000
 
 PKGDIR := pkg
-PKGTOOL_CORE := $(OO_PS4_TOOLCHAIN)/bin/linux/PkgTool.Core
+TOOLCHAIN_BIN := $(OO_PS4_TOOLCHAIN)/bin/linux
+TOOLCHAIN_DATA := $(OO_PS4_TOOLCHAIN)/bin/data
+
+CREATE_EBOOT := $(TOOLCHAIN_BIN)/create-eboot
+PKGTOOL_CORE := $(TOOLCHAIN_BIN)/PkgTool.Core
 
 pkg: $(CONTENT_ID).pkg
 
 $(PKGDIR)/eboot.bin: $(EBOOT)
 	@mkdir -p $(PKGDIR)
-	create-fself -eboot=$(PKGDIR)/eboot.bin -in=$(EBOOT) -out=$(OBJDIR)/eboot.oelf --paid 0x3800000000000010
+	$(CREATE_EBOOT) -in=$(EBOOT) -eboot=$(PKGDIR)/eboot.bin --paid 0x3800000000000011
 
 $(PKGDIR)/sce_sys/param.sfo: Makefile
 	@mkdir -p $(PKGDIR)/sce_sys
@@ -107,23 +125,47 @@ $(PKGDIR)/sce_sys/param.sfo: Makefile
 	$(PKGTOOL_CORE) sfo_setentry $@ TITLE_ID --type Utf8 --maxsize 12 --value '$(TITLE_ID)'
 	$(PKGTOOL_CORE) sfo_setentry $@ VERSION --type Utf8 --maxsize 8 --value '$(VERSION)'
 
-# right.sprx یه فایل استاندارد و شناخته‌شده‌ست که تقریباً همه‌ی هوم‌بروهای
-# PS4 لازمش دارن (بخش "about" پکیج). مستقیم از ریپوی رسمی و شناخته‌شده‌ی
-# Al-Azif دانلودش می‌کنیم، نه این‌که حدس زده بشه.
 $(PKGDIR)/sce_sys/about/right.sprx:
 	@mkdir -p $(PKGDIR)/sce_sys/about
-	python3 -c "import urllib.request; urllib.request.urlretrieve('https://raw.githubusercontent.com/Al-Azif/ps4-hello-world/main/hello_world/pkg/sce_sys/about/right.sprx', '$@')"
+	cp $(TOOLCHAIN_DATA)/right.sprx $@
 
 $(PKGDIR)/sce_sys/icon0.png:
 	@mkdir -p $(PKGDIR)/sce_sys
-	python3 tools/make_placeholder_png.py $@ 512 512
+	cp $(TOOLCHAIN_DATA)/icon0.png $@
 
-$(PKGDIR)/sce_sys/pic1.png:
+$(PKGDIR)/sce_sys/pic0.png:
 	@mkdir -p $(PKGDIR)/sce_sys
-	python3 tools/make_placeholder_png.py $@ 1920 1080
+	cp $(TOOLCHAIN_DATA)/pic0.png $@
 
-$(PKGDIR)/pkg.gp4: $(PKGDIR)/eboot.bin $(PKGDIR)/sce_sys/about/right.sprx $(PKGDIR)/sce_sys/param.sfo $(PKGDIR)/sce_sys/icon0.png $(PKGDIR)/sce_sys/pic1.png
-	cd $(PKGDIR) && create-gp4 -out pkg.gp4 --content-id=$(CONTENT_ID) --files "eboot.bin sce_sys/about/right.sprx sce_sys/param.sfo sce_sys/icon0.png sce_sys/pic1.png"
+define GP4_CONTENT
+<?xml version="1.0" encoding="utf-8"?>
+<psproject xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" fmt="gp4" version="1000">
+  <volume>
+    <volume_type>pkg_ps4_app</volume_type>
+    <volume_ts>2012-01-01 08:00:00</volume_ts>
+    <package content_id="$(CONTENT_ID)" passcode="00000000000000000000000000000000" storage_type="digital50" app_type="full" />
+    <chunk_info chunk_count="1" scenario_count="1">
+      <chunks>
+        <chunk id="0" layer_no="0" label="Chunk #0" />
+      </chunks>
+      <scenarios default_id="0">
+        <scenario id="0" type="sp" initial_chunk_count="1" label="Scenario #0">0</scenario>
+      </scenarios>
+    </chunk_info>
+  </volume>
+  <files img_no="0">
+    <file targ_path="eboot.bin" orig_path="$(PKGDIR)/eboot.bin" />
+    <file targ_path="sce_sys/param.sfo" orig_path="$(PKGDIR)/sce_sys/param.sfo" />
+    <file targ_path="sce_sys/icon0.png" orig_path="$(PKGDIR)/sce_sys/icon0.png" />
+    <file targ_path="sce_sys/pic0.png" orig_path="$(PKGDIR)/sce_sys/pic0.png" />
+    <file targ_path="sce_sys/about/right.sprx" orig_path="$(PKGDIR)/sce_sys/about/right.sprx" />
+  </files>
+</psproject>
+endef
+export GP4_CONTENT
+
+$(PKGDIR)/pkg.gp4: $(PKGDIR)/eboot.bin $(PKGDIR)/sce_sys/about/right.sprx $(PKGDIR)/sce_sys/param.sfo $(PKGDIR)/sce_sys/icon0.png $(PKGDIR)/sce_sys/pic0.png
+	@echo "$$GP4_CONTENT" > $@
 
 $(CONTENT_ID).pkg: $(PKGDIR)/pkg.gp4
 	$(PKGTOOL_CORE) pkg_build $< .
