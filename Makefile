@@ -94,11 +94,12 @@ $(PKGDIR)/sce_sys/pic0.png:
 	cp $(TOOLCHAIN_DATA)/pic0.png $@
 
 define GP4_CONTENT
-<?xml version="1.0" encoding="utf-8"?>
+<?xml version="1.0"?>
 <psproject xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" fmt="gp4" version="1000">
   <volume>
     <volume_type>pkg_ps4_app</volume_type>
-    <volume_ts>2012-01-01 08:00:00</volume_ts>
+    <volume_id>PS4VOLUME</volume_id>
+    <volume_ts>2018-01-30 04:20:11</volume_ts>
     <package content_id="$(CONTENT_ID)" passcode="00000000000000000000000000000000" storage_type="digital50" app_type="full" />
     <chunk_info chunk_count="1" scenario_count="1">
       <chunks>
@@ -111,14 +112,16 @@ define GP4_CONTENT
   </volume>
   <files img_no="0">
     <file targ_path="eboot.bin" orig_path="eboot.bin" />
-    <dir targ_name="sce_sys">
-      <dir targ_name="about" />
-    </dir>
     <file targ_path="sce_sys/param.sfo" orig_path="sce_sys/param.sfo" />
     <file targ_path="sce_sys/icon0.png" orig_path="sce_sys/icon0.png" />
     <file targ_path="sce_sys/pic0.png" orig_path="sce_sys/pic0.png" />
     <file targ_path="sce_sys/about/right.sprx" orig_path="sce_sys/about/right.sprx" />
   </files>
+  <rootdir>
+    <dir targ_name="sce_sys">
+      <dir targ_name="about" />
+    </dir>
+  </rootdir>
 </psproject>
 endef
 export GP4_CONTENT
